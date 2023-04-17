@@ -8,6 +8,5 @@ export const itemsByEndingTime = async (order: 'DESC' | 'ASC' = 'DESC', offset =
 		LIMIT: { offset, count },
 		BY: 'SCORE'
 	});
-	console.log(ids);
 	return getItems(ids);
 };

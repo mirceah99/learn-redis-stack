@@ -19,7 +19,5 @@ const run = async () => {
 		client.hGetAll('car2'),
 		client.hGetAll('car3')
 	]);
-
-	console.log(result);
 };
 run();
