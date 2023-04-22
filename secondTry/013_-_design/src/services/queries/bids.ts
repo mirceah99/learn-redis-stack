@@ -1,13 +1,11 @@
 import { bidHistoryKey, itemsKey, itemsByPriceKey } from '$services/keys';
-import { client } from '$services/redis';
+import { client, withLock } from '$services/redis';
 import type { CreateBidAttrs } from '$services/types';
 import { DateTime } from 'luxon';
 import { getItem } from './items';
 
 export const createBid = async (attrs: CreateBidAttrs) => {
-	return client.executeIsolated(async (isolatedClient) => {
-		isolatedClient.watch(itemsKey(attrs.itemId));
-		const bidDate = attrs.createdAt.toMillis();
+	return await withLock('a', async () => {
 		const item = await getItem(attrs.itemId);
 
 		if (!item) {
@@ -20,19 +18,18 @@ export const createBid = async (attrs: CreateBidAttrs) => {
 			throw new Error('item close to biding ');
 		}
 
-		return await isolatedClient
-			.multi()
-			.rPush(bidHistoryKey(attrs.itemId), serializeHistory(attrs.amount, bidDate))
-			.hSet(itemsKey(item.id), {
+		return await Promise.all([
+			client.rPush(
+				bidHistoryKey(attrs.itemId),
+				serializeHistory(attrs.amount, attrs.createdAt.toMillis())
+			),
+			client.hSet(itemsKey(item.id), {
 				bids: item.bids + 1,
 				price: attrs.amount,
 				highestBidUserId: attrs.userId
-			})
-			.zAdd(itemsByPriceKey(), { value: item.id, score: attrs.amount })
-			.exec()
-			.catch((e) => {
-				console.log(`error from redis!!`, e);
-			});
+			}),
+			client.zAdd(itemsByPriceKey(), { value: item.id, score: attrs.amount })
+		]);
 	});
 };
 

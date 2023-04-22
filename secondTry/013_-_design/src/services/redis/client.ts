@@ -1,5 +1,6 @@
 import { itemsKey, itemsViewsKey, itemsViewsKeyHyperLogLog } from '$services/keys';
 import { createClient, defineScript } from 'redis';
+import { createIndexes } from './create-indexes';
 
 const client = createClient({
 	socket: {
@@ -39,7 +40,33 @@ const client = createClient({
 			transformReply(reply) {
 				return reply;
 			}
+		}),
+		unlock: defineScript({
+			NUMBER_OF_KEYS: 1,
+			SCRIPT: `
+			local keyToUnlock =  KEYS[1];
+			local valueToCheck =  ARGV[1];
+
+			if redis.call("GET", keyToUnlock) == valueToCheck then
+               return redis.call("DEL", keyToUnlock);
+			end
+			`,
+			transformArguments(keyToUnlock: string, token: string) {
+				return [keyToUnlock, token];
+			},
+			transformReply(reply) {
+				return reply;
+			}
 		})
+	}
+});
+client.on('connect', async () => {
+	try {
+		console.log('Create indexes!');
+		await createIndexes();
+	} catch (e) {
+		console.log('create indexes on connection failed !!');
+		console.error(e);
 	}
 });
 

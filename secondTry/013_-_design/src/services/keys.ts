@@ -13,3 +13,6 @@ export const usersKey = (userId: string) => `users#${userId}`;
 export const usernamesUniqueKey = () => 'username:unique';
 export const usersLikesKey = (userId: string) => `users:likes#${userId}`;
 export const usernamesKey = () => `usernames`;
+
+//indexes
+export const itemsIndexKey = () => `idx:items`;
